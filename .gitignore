@@ -3,6 +3,7 @@
 
 *.ipynb
 *.db
+money-bot
 # Ignoring dev directories
 venv/
 .idea/

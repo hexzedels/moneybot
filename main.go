@@ -96,11 +96,17 @@ func main() {
 				log.Println("ERROR While proccessing purchase: ", err)
 			}
 			insertToUserTable(userId, purchase, db)
+			msg := tg.NewMessage(update.Message.Chat.ID, "Записал!")
+			msg.ReplyToMessageID = update.Message.MessageID
+			_, err = bot.Send(msg)
+			if err != nil {
+				log.Println("ERROR While sending msg: ", err)
+			}
 		}
 		switch update.Message.Command() {
 		case "start":
 
-			initUserTable(userId, db)
+			initUserTable(userId, db) // TODO: Modify msg.text if table already created
 			if !isInUsers(userId, db) {
 				insertUser(update, db)
 			}
@@ -109,9 +115,19 @@ func main() {
 			if err != nil {
 				log.Println("ERROR While sending msg: ", err)
 			}
-
+		case "ping":
+			msg := tg.NewMessage(update.Message.Chat.ID, "pong")
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Println("ERROR While sending msg: ", err)
+			}
 		case "keyboard":
 		case "help":
+			msg := tg.NewMessage(update.Message.Chat.ID, "Use /start to create your own money tracker\n Play ping-pong with /ping")
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Println("ERROR While sending msg: ", err)
+			}
 		default:
 
 		}
