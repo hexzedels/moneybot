@@ -1,0 +1,9 @@
+# Ignoring confedential data
+.env
+
+*.ipynb
+*.db
+# Ignoring dev directories
+venv/
+.idea/
+.ipynb_checkpoints/
