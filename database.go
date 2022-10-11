@@ -14,6 +14,11 @@ const (
 	defaultDebt    = 0.0
 )
 
+// type Databse struct { TODO: Implement custom interface over this struct
+// 	db     *sql.DB
+// 	userId string
+// }
+
 func initUsers(db *sql.DB) {
 	users_table := `CREATE TABLE IF NOT EXISTS users (
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -48,7 +53,7 @@ func isInUsers(userId string, db *sql.DB) bool {
 }
 
 func insertUser(update tg.Update, db *sql.DB) {
-	user_insert := `INSERT INTO users (FirstName, LastName, UserId, Balance, Debt) VALUES (?, ?, ?, ?, ?);`
+	user_insert := `INSERT INTO users (FirstName, LastName, UserId, Balance, Debt, Peer) VALUES (?, ?, ?, ?, ?);`
 	query, err := db.Prepare(user_insert)
 	if err != nil {
 		log.Println("ERROR While preparing sql query: ", err)
@@ -85,7 +90,7 @@ func initUserTable(userId string, db *sql.DB) {
 	}
 }
 
-func insertToUserTable(userId string, data *Purchase, db *sql.DB) {
+func insertToUserTable(userId string, data *Purchase, db *sql.DB) { // TODO: Implement timestamp saving to sort by it later
 	validUserId := fmt.Sprintf("user_%s", userId)
 	purchase_insert := fmt.Sprintf(`INSERT INTO %s(Item, Price, Category) VALUES (?, ?, ?);`, validUserId)
 	query, err := db.Prepare(purchase_insert)
@@ -96,4 +101,53 @@ func insertToUserTable(userId string, data *Purchase, db *sql.DB) {
 	if err != nil {
 		log.Println("ERROR While executing sql query: ", err)
 	}
+}
+
+// TODO: Think about wrapping work with rows into some over function
+func selectUserTable(userId string, db *sql.DB) []Purchase {
+	validUserId := fmt.Sprintf("user_%s", userId)
+	user_select := fmt.Sprintf(`SELECT Item, Price, Category FROM %s`, validUserId)
+	query, err := db.Prepare(user_select)
+	if err != nil {
+		log.Println("ERROR While preparing sql query: ", err)
+	}
+	rows, err := query.Query()
+	if err != nil {
+		log.Println("ERROR While executing sql query: ", err)
+	}
+	defer rows.Close()
+	var data []Purchase
+
+	for rows.Next() {
+		i := Purchase{}
+		err = rows.Scan(&i.item, &i.price, &i.category)
+		if err != nil {
+			log.Println("ERROR While scanning sql row: ", err)
+		}
+		data = append(data, i)
+	}
+	return data
+}
+
+func selectSumUserTable(userId string, db *sql.DB) float32 {
+	validUserId := fmt.Sprintf("user_%s", userId)
+	user_select_sum := fmt.Sprintf(`SELECT SUM(Price) FROM %s;`, validUserId)
+	query, err := db.Prepare(user_select_sum)
+	if err != nil {
+		log.Println("ERROR While preparing sql query: ", err)
+	}
+	rows, err := query.Query()
+	if err != nil {
+		log.Println("ERROR While executing sql query: ", err)
+	}
+	defer rows.Close()
+
+	var sum float32
+	for rows.Next() {
+		err = rows.Scan(&sum)
+		if err != nil {
+			log.Println("ERROR While scanning sql row: ", err)
+		}
+	}
+	return sum
 }

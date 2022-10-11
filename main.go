@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
 
 	tg "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/jedib0t/go-pretty/table"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -47,6 +49,7 @@ func main() {
 		}
 	}
 	TOKEN := envs["TOKEN"]
+	HELP := envs["HELP"]
 
 	// Databse init
 	isExists, err := exists("./data.db")
@@ -86,18 +89,25 @@ func main() {
 	}
 
 	for update := range updates {
-		userId := strconv.Itoa(update.Message.From.ID)
 		if update.Message == nil {
 			continue
 		}
+		userId := strconv.Itoa(update.Message.From.ID)
 		if !update.Message.IsCommand() {
+			msg := tg.NewMessage(update.Message.Chat.ID, "Записал!")
+			msg.ReplyToMessageID = update.Message.MessageID
+			msg.ParseMode = "HTML"
+
 			purchase, err := proccessPurchase(update)
 			if err != nil {
 				log.Println("ERROR While proccessing purchase: ", err)
 			}
-			insertToUserTable(userId, purchase, db)
-			msg := tg.NewMessage(update.Message.Chat.ID, "Записал!")
-			msg.ReplyToMessageID = update.Message.MessageID
+			if (Purchase{}) == *purchase {
+				log.Println("WARNING Received non spending msg: ", update.Message.Text)
+				msg.Text = "<b>Неверный формат!</b>\nИспользуйте /help"
+			} else {
+				insertToUserTable(userId, purchase, db)
+			}
 			_, err = bot.Send(msg)
 			if err != nil {
 				log.Println("ERROR While sending msg: ", err)
@@ -105,7 +115,6 @@ func main() {
 		}
 		switch update.Message.Command() {
 		case "start":
-
 			initUserTable(userId, db) // TODO: Modify msg.text if table already created
 			if !isInUsers(userId, db) {
 				insertUser(update, db)
@@ -121,9 +130,38 @@ func main() {
 			if err != nil {
 				log.Println("ERROR While sending msg: ", err)
 			}
-		case "keyboard":
+		case "list":
+			data := selectUserTable(userId, db)
+			fmt.Println(data)
+			t := table.NewWriter()
+			t.AppendHeader(table.Row{"#", "Item", "Price", "Category"})
+			for i, e := range data {
+				t.AppendRow([]interface{}{i, e.item, e.price, e.category})
+			}
+
+			msg := tg.NewMessage(update.Message.Chat.ID, t.RenderMarkdown())
+			msg.ParseMode = "Markdown"
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Println("ERROR While sending msg: ", err)
+			}
+		case "sum":
+			sum := selectSumUserTable(userId, db)
+
+			msg := tg.NewMessage(update.Message.Chat.ID, "")
+			msg.ParseMode = "HTML"
+			msg.Text = fmt.Sprintf("Sum of last spendings is: %.2f", sum)
+			_, err := bot.Send(msg)
+			if err != nil {
+				log.Println("ERROR While sending msg: ", err)
+			}
+
+		// TODO: Implement keyboard ask where to add spending (trigger only for multiple tables)
+		case "create": // TODO: Implement search for mentioned user in database and start goroutine that asks mentioned user is he
+		// willing to join initiating user's fund
 		case "help":
-			msg := tg.NewMessage(update.Message.Chat.ID, "Use /start to create your own money tracker\n Play ping-pong with /ping")
+			msg := tg.NewMessage(update.Message.Chat.ID, HELP)
+			msg.ParseMode = "HTML"
 			_, err := bot.Send(msg)
 			if err != nil {
 				log.Println("ERROR While sending msg: ", err)

@@ -1,19 +1,24 @@
 package main
 
 import (
+	"regexp"
 	"strconv"
-	"strings"
 
 	tg "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-func proccessPurchase(update tg.Update) (*Purchase, error) {
-	splitted := strings.Split(update.Message.Text, " ") // TODO: Implement splitting by the spaces separating only three fields
-	price, err := strconv.ParseFloat(splitted[1], 32)
-	p := Purchase{
-		item:     splitted[0],
-		price:    price,
-		category: splitted[2]}
+const ZERO = 0.0
 
+func proccessPurchase(update tg.Update) (*Purchase, error) {
+	r, err := regexp.Compile(`([^\d]+) ([\d\.\,]+) ([^\d]+)`)
+	splitted := r.FindStringSubmatch(update.Message.Text)
+	p := Purchase{}
+	if len(splitted) > 1 {
+		price, err := strconv.ParseFloat(splitted[2], 32)
+		p.item = splitted[1]
+		p.price = price
+		p.category = splitted[3]
+		return &p, err
+	}
 	return &p, err
 }
