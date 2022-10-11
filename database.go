@@ -53,7 +53,7 @@ func isInUsers(userId string, db *sql.DB) bool {
 }
 
 func insertUser(update tg.Update, db *sql.DB) {
-	user_insert := `INSERT INTO users (FirstName, LastName, UserId, Balance, Debt, Peer) VALUES (?, ?, ?, ?, ?);`
+	user_insert := `INSERT INTO users (FirstName, LastName, UserId, Balance, Debt) VALUES (?, ?, ?, ?, ?);`
 	query, err := db.Prepare(user_insert)
 	if err != nil {
 		log.Println("ERROR While preparing sql query: ", err)
