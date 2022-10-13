@@ -10,7 +10,7 @@ import (
 const ZERO = 0.0
 
 func proccessPurchase(update tg.Update) (*Purchase, error) {
-	r, err := regexp.Compile(`([^\d]+) ([\d\.\,]+) ([^\d]+)`)
+	r, err := regexp.Compile(`([^\d\*\&\%\$\#\@]+) (\d+[\,\.]{0,1}\d+) ([^\d]+)`)
 	splitted := r.FindStringSubmatch(update.Message.Text)
 	p := Purchase{}
 	if len(splitted) > 1 {
