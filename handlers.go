@@ -20,7 +20,7 @@ func start(bot *tg.BotAPI, update tg.Update, db Databse, userId string) {
 
 func sum(bot *tg.BotAPI, update tg.Update, db Databse, userId string) {
 	sum, err := db.selectSumUserTable(userId)
-	errD := fmt.Sprintf(USER_TABLE_IS_NOT_EXISTS, userId)
+	errD := fmt.Sprintf(UserTableIsNotExists, userId)
 	if err != nil && err.Error() == errD {
 		db.initUserTable(userId)
 	}
@@ -35,7 +35,7 @@ func sum(bot *tg.BotAPI, update tg.Update, db Databse, userId string) {
 }
 
 func help(bot *tg.BotAPI, update tg.Update) {
-	msg := tg.NewMessage(update.Message.Chat.ID, HELP)
+	msg := tg.NewMessage(update.Message.Chat.ID, HelpString)
 	msg.ParseMode = "HTML"
 	_, err := bot.Send(msg)
 	if err != nil {
@@ -44,8 +44,7 @@ func help(bot *tg.BotAPI, update tg.Update) {
 }
 
 func list(bot *tg.BotAPI, update tg.Update, db Databse, userId string) {
-	data := db.selectUserTable(userId)
-	fmt.Println(data)
+	data := db.selectUserTable(userId) //TODO: Add table creation
 	t := table.NewWriter()
 	t.AppendHeader(table.Row{"#", "Item", "Price", "Category"})
 	for i, e := range data {
@@ -58,4 +57,8 @@ func list(bot *tg.BotAPI, update tg.Update, db Databse, userId string) {
 	if err != nil {
 		log.Println("ERROR While sending msg: ", err)
 	}
+}
+
+func add(bot *tg.BotAPI, update tg.Update, db Databse, userId string) {
+
 }

@@ -8,3 +8,4 @@ money-bot
 venv/
 .idea/
 .ipynb_checkpoints/
+.vscode/

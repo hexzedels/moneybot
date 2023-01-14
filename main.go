@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -24,19 +25,19 @@ func exists(name string) (bool, error) {
 	if err == nil {
 		return true, nil
 	}
+
 	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
+
 	return false, err
 }
 
 func main() {
 	// Loading .env file
-	log.Println("PROCESSING .env file")
 	envs, err := godotenv.Read(".env")
-
 	if err != nil {
-		log.Fatalf("ERROR During loading .env file: %s", err)
+		panic(fmt.Sprintf("ERROR During loading .env file: %s", err))
 	}
 
 	for key, value := range envs {
@@ -51,46 +52,47 @@ func main() {
 	// Databse init
 	isExists, err := exists("./data.db")
 	if err != nil {
-		log.Fatal("ERROR While checking if base exists: ", err)
+		panic(fmt.Sprintf("while checking if base exists: %s", err))
 	}
+
 	if !isExists {
 		_, err := os.Create("./data.db")
 		if err != nil {
-			log.Fatal("ERROR Base is not created: ", err)
+			log.Printf("ERROR Base is not created: %s", err)
 		}
 	}
 
 	dataBase, err := sql.Open("sqlite3", "./data.db")
-	defer dataBase.Close()
 	if err != nil {
-		log.Fatal("ERROR Base is not created: ", err)
+		log.Printf("base is not created: %s", err)
 	}
+	defer dataBase.Close()
+
 	db := Databse{dataBase}
 	db.initUsers()
 
 	bot, err := tg.NewBotAPI(TOKEN)
 	if err != nil {
-		log.Fatal("ERROR Bot is not created", err)
-
+		log.Printf("bot is not created %s", err)
 	}
 
 	bot.Debug = true
 
-	log.Printf("AUTHORIZED on account %s", bot.Self.UserName)
+	log.Printf("bot started as %s", bot.Self.UserName)
 
 	u := tg.NewUpdate(0)
 	u.Timeout = 60
 
 	updates, err := bot.GetUpdatesChan(u)
 	if err != nil {
-		log.Fatal("ERROR while receiving updates: ", err)
+		panic(fmt.Sprintf("while receiving updates: %s", err))
 	}
 
 	for update := range updates {
 		if update.Message == nil {
 			continue
 		}
-		userId := strconv.Itoa(update.Message.From.ID)
+		userID := strconv.Itoa(update.Message.From.ID)
 		if !update.Message.IsCommand() {
 			msg := tg.NewMessage(update.Message.Chat.ID, "Записал!")
 			msg.ReplyToMessageID = update.Message.MessageID
@@ -98,40 +100,42 @@ func main() {
 
 			purchase, err := proccessPurchase(update)
 			if err != nil {
-				log.Println("ERROR While proccessing purchase: ", err)
-			}
-			if (Purchase{}) == *purchase {
-				log.Println("WARNING Received non spending msg: ", update.Message.Text)
+				log.Println("while processing purchase: ", err)
 				msg.Text = "<b>Неверный формат!</b>\nИспользуйте /help"
 			} else {
-				db.insertToUserTable(userId, purchase)
+				if (Purchase{}) == *purchase {
+					log.Println("received non spending msg: ", update.Message.Text)
+					msg.Text = "<b>Неверный формат!</b>\nИспользуйте /help"
+				} else {
+					db.insertToUserTable(userID, purchase)
+				}
 			}
+
 			_, err = bot.Send(msg)
 			if err != nil {
-				log.Println("ERROR While sending msg: ", err)
+				log.Println("while sending msg: ", err)
 			}
 		}
+
 		switch update.Message.Command() {
 		case "start":
-			go start(bot, update, db, userId)
+			go start(bot, update, db, userID)
 		case "ping":
 			msg := tg.NewMessage(update.Message.Chat.ID, "pong")
 			_, err := bot.Send(msg)
 			if err != nil {
-				log.Println("ERROR While sending msg: ", err)
+				log.Println("while sending msg: ", err)
 			}
 		case "list":
-			go list(bot, update, db, userId)
+			go list(bot, update, db, userID)
 		case "sum":
-			go sum(bot, update, db, userId)
+			go sum(bot, update, db, userID)
 		// TODO: Implement keyboard ask where to add spending (trigger only for multiple tables)
 		case "create": // TODO: Implement search for mentioned user in database and start goroutine that asks mentioned user is he
 		// willing to join initiating user's fund
 		case "help":
 			go help(bot, update)
 		default:
-
 		}
 	}
-
 }
